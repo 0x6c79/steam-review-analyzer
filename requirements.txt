@@ -11,6 +11,7 @@ idna==3.10
 jieba==0.42.1
 joblib==1.5.1
 kiwisolver==1.4.8
+langdetect==1.0.9
 matplotlib==3.10.5
 multidict==6.6.3
 nltk==3.9.1
@@ -28,3 +29,6 @@ six==1.17.0
 tqdm==4.67.1
 tzdata==2025.2
 yarl==1.20.1
+scipy
+wordcloud
+pytest
