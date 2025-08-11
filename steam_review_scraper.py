@@ -1,13 +1,29 @@
 import asyncio
 import aiohttp
-import json
 import csv
 import urllib.parse
 from aiohttp import ClientTimeout
 import logging
+import argparse
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+async def get_app_details(session, app_id):
+    url = f"https://store.steampowered.com/api/appdetails?appids={app_id}"
+    try:
+        timeout = ClientTimeout(total=10)
+        async with session.get(url, timeout=timeout) as response:
+            response.raise_for_status()
+            data = await response.json()
+            if data and str(app_id) in data and data[str(app_id)].get('success'):
+                return data[str(app_id)]['data'].get('name')
+            else:
+                logging.error(f"Could not retrieve app details for App ID {app_id}.")
+                return None
+    except aiohttp.ClientError as e:
+        logging.error(f"Error fetching app details for App ID {app_id}: {e}")
+        return None
 
 async def get_reviews(session, app_id, cursor='*', retries=5, backoff_factor=1):
     url = f"https://store.steampowered.com/appreviews/{app_id}?json=1&filter=all&language=all&day_range=9223372036854775807&review_type=all&purchase_type=all"
@@ -53,32 +69,28 @@ def flatten_review(review):
         review_flat[f'author.{key}'] = value
     return review_flat
 
-import argparse
-
-async def main():
-    parser = argparse.ArgumentParser(description="Scrape Steam reviews for a given App ID.")
-    parser.add_argument("--app_id", type=str, default="2277560",
-                        help="The Steam App ID to scrape reviews for (default: 2277560).")
-    parser.add_argument("--max_concurrent_requests", type=int, default=5,
-                        help="Maximum number of concurrent requests (default: 5).")
-    parser.add_argument("--limit", type=int, default=0,
-                        help="Maximum number of reviews to fetch (default: 0, means no limit).")
-    args = parser.parse_args()
-
-    app_id = args.app_id
+async def main(app_id, limit=0):
+    MAX_CONCURRENT_REQUESTS = 5
+    LIMIT = limit
     cursor = '*'
-    MAX_CONCURRENT_REQUESTS = args.max_concurrent_requests
-    LIMIT = args.limit
     semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
     
     # Use a flag to write header only once
     header_written = False
 
     try:
-        with open('reviews.csv', 'w', newline='', encoding='utf-8') as csvfile:
-            writer = None # Initialize writer to None
+        async with aiohttp.ClientSession() as session:
+            game_name = await get_app_details(session, app_id)
+            if game_name:
+                # Sanitize game name for filename
+                sanitized_game_name = "".join([c if c.isalnum() or c in (' ', '_', '-') else '_' for c in game_name]).strip()
+                output_filename = f"{sanitized_game_name}_{app_id}_reviews.csv"
+            else:
+                output_filename = f"reviews_{app_id}.csv"
+                logging.warning(f"Could not retrieve game name for App ID {app_id}. Using default filename: {output_filename}")
 
-            async with aiohttp.ClientSession() as session:
+            with open(output_filename, 'w', newline='', encoding='utf-8') as csvfile:
+                writer = None # Initialize writer to None
                 total_reviews_fetched = 0
                 while True:
                     async with semaphore:
@@ -115,11 +127,17 @@ async def main():
                     else:
                         logging.warning("Failed to fetch reviews or no more reviews.")
                         break
-            logging.info(f"Successfully saved {total_reviews_fetched} reviews to reviews.csv")
+            logging.info(f"Successfully saved {total_reviews_fetched} reviews to {output_filename}")
     except IOError as e:
         logging.error(f"Error writing reviews to CSV: {e}")
     except Exception as e:
         logging.error(f"An unexpected error occurred: {e}")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    parser = argparse.ArgumentParser(description="Scrape Steam reviews for a given App ID.")
+    parser.add_argument("--app_id", type=str, default="2277560",
+                        help="The Steam App ID to scrape reviews for (default: 2277560).")
+    parser.add_argument("--limit", type=int, default=0,
+                        help="Maximum number of reviews to fetch (default: 0, means no limit).")
+    args = parser.parse_args()
+    asyncio.run(main(args.app_id, args.limit))
