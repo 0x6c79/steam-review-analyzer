@@ -1,4 +1,3 @@
-import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import logging
@@ -30,8 +29,8 @@ def analyze_sentiment(df):
 
     # Overall Sentiment Distribution
     total_reviews = len(df)
-    positive_reviews_count = df[df['voted_up'] == True].shape[0]
-    negative_reviews_count = df[df['voted_up'] == False].shape[0]
+    positive_reviews_count = df[df['voted_up']].shape[0]
+    negative_reviews_count = df[~df['voted_up']].shape[0]
 
     logging.info(f"总评论数: {total_reviews}")
     logging.info(f"好评: {positive_reviews_count} ({positive_reviews_count / total_reviews:.2%})")
@@ -44,12 +43,12 @@ def analyze_sentiment(df):
     plt.title('Sentiment Score Distribution')
     plt.xlabel('Sentiment Score (0: Negative, 1: Positive)')
     plt.ylabel('Number of Reviews')
-    plt.savefig('sentiment_score_distribution.png')
+    plt.savefig('plots/sentiment_score_distribution.png')
     plt.close()
-    logging.info("Generated sentiment_score_distribution.png")
+    logging.info("Generated plots/sentiment_score_distribution.png")
 
     # Resample by week and calculate sentiment ratios
-    weekly_sentiment = df.resample('W').apply({'voted_up': lambda x: (x == True).sum(),
+    weekly_sentiment = df.resample('W').apply({'voted_up': lambda x: x.sum(),
                                                 'review': 'count'})
     weekly_sentiment.rename(columns={'voted_up': 'Positive_Count', 'review': 'Total_Reviews'}, inplace=True)
     weekly_sentiment['Negative_Count'] = weekly_sentiment['Total_Reviews'] - weekly_sentiment['Positive_Count']

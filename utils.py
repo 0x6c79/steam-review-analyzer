@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import logging
 import scipy.stats as stats
-from collections import Counter
 import os
 import nltk
 from nltk.corpus import stopwords
@@ -79,7 +78,7 @@ def plot_word_frequencies(word_freq, title, filename, top_n=20):
     plt.tight_layout()
     plt.savefig(f'plots/{filename}')
     plt.close()
-    logging.info(f"Generated {filename}")
+    logging.info(f"Generated plots/{filename}")
 
 def generate_word_cloud(text, title, filename, font_path=None):
     if not text.strip():
@@ -94,13 +93,15 @@ def generate_word_cloud(text, title, filename, font_path=None):
     plt.tight_layout()
     plt.savefig(f'plots/{filename}')
     plt.close()
-    logging.info(f"Generated {filename}")
+    logging.info(f"Generated plots/{filename}")
 
 def analyze_by_playtime(df):
     # Convert playtime to hours and handle potential non-numeric values
     df['playtime_hours'] = pd.to_numeric(df['author.playtime_forever'], errors='coerce') / 60
     df.dropna(subset=['playtime_hours', 'voted_up'], inplace=True)
-    if df.empty: logging.warning("No data for playtime analysis after dropping NaNs. Skipping."); return
+    if df.empty:
+        logging.warning("No data for playtime analysis after dropping NaNs. Skipping.")
+        return
 
     # Calculate Point-Biserial Correlation
     # Convert 'voted_up' to numeric (True=1, False=0) for correlation
@@ -113,6 +114,10 @@ def analyze_by_playtime(df):
     labels = ['<1h', '1-5h', '5-10h', '10-20h', '20-50h', '50-100h', '100-200h', '200-500h']
 
     max_playtime = df['playtime_hours'].max()
+    if pd.isna(max_playtime): # Handle case where max_playtime is NaN (e.g., all playtime_hours were NaN)
+        logging.warning("max_playtime is NaN. Skipping playtime binning.")
+        return
+
     if max_playtime > bins[-1]:
         bins.append(max_playtime + 1) # Add a bin just above the max playtime
         labels.append(f'>={bins[-2]:.0f}h') # Add a corresponding label
@@ -146,7 +151,7 @@ def analyze_by_playtime(df):
     plt.tight_layout()
     plt.savefig('plots/sentiment_by_playtime.png')
     plt.close()
-    logging.info("Generated playtime_sentiment_boxplot.png")
+    logging.info("Generated plots/sentiment_by_playtime.png")
 
     # Box plot for playtime vs. sentiment
     plt.figure(figsize=(12, 7))
@@ -158,12 +163,14 @@ def analyze_by_playtime(df):
     plt.tight_layout()
     plt.savefig('plots/playtime_sentiment_boxplot.png')
     plt.close()
-    logging.info("Generated playtime_sentiment_boxplot.png")
+    logging.info("Generated plots/playtime_sentiment_boxplot.png")
 
 def analyze_by_review_length(df):
     df['review_length'] = df['review'].astype(str).apply(len)
     df.dropna(subset=['review_length', 'voted_up'], inplace=True)
-    if df.empty: logging.warning("No data for review length analysis after dropping NaNs. Skipping."); return
+    if df.empty:
+        logging.warning("No data for review length analysis after dropping NaNs. Skipping.")
+        return
 
     # Define review length bins
     bins = [0, 50, 100, 200, 500, 1000, float('inf')]
@@ -183,7 +190,7 @@ def analyze_by_review_length(df):
     plt.tight_layout()
     plt.savefig('plots/sentiment_by_review_length.png')
     plt.close()
-    logging.info("Generated sentiment_by_review_length.png")
+    logging.info("Generated plots/sentiment_by_review_length.png")
 
     # Calculate Point-Biserial Correlation
     df['voted_up_numeric'] = df['voted_up'].astype(int)
@@ -200,10 +207,12 @@ def analyze_by_review_length(df):
     plt.tight_layout()
     plt.savefig('plots/review_length_sentiment_boxplot.png')
     plt.close()
-    logging.info("Generated review_length_sentiment_boxplot.png")
+    logging.info("Generated plots/review_length_sentiment_boxplot.png")
 
 def analyze_by_early_access(df):
-    if df.empty: logging.warning("No data for early access analysis. Skipping."); return
+    if df.empty:
+        logging.warning("No data for early access analysis. Skipping.")
+        return
     ea_sentiment = df.groupby('written_during_early_access')['voted_up'].value_counts(normalize=True).unstack().fillna(0)
     ea_sentiment.columns = ['Negative', 'Positive']
     ea_sentiment = ea_sentiment.sort_values(by='Positive', ascending=False)
@@ -218,7 +227,7 @@ def analyze_by_early_access(df):
     plt.tight_layout()
     plt.savefig('plots/sentiment_by_early_access.png')
     plt.close()
-    logging.info("Generated sentiment_by_early_access.png")
+    logging.info("Generated plots/sentiment_by_early_access.png")
 
 def plot_sentiment_distribution(positive_reviews_count, negative_reviews_count, total_reviews):
     labels = ['Positive', 'Negative']
@@ -233,7 +242,7 @@ def plot_sentiment_distribution(positive_reviews_count, negative_reviews_count, 
     plt.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
     plt.savefig('plots/sentiment_distribution.png')
     plt.close()
-    logging.info("Generated sentiment_distribution.png")
+    logging.info("Generated plots/sentiment_distribution.png")
 
 def plot_sentiment_over_time(df, title, filename):
     plt.figure(figsize=(12, 6))
@@ -247,4 +256,4 @@ def plot_sentiment_over_time(df, title, filename):
     plt.tight_layout()
     plt.savefig(f'plots/{filename}')
     plt.close()
-    logging.info(f"Generated {filename}")
+    logging.info(f"Generated plots/{filename}")

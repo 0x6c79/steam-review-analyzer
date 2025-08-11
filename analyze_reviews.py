@@ -27,6 +27,12 @@ DetectorFactory.seed = 0
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 async def main(file_path: str):
+    # Create plots directory if it doesn't exist
+    plots_dir = "plots"
+    if not os.path.exists(plots_dir):
+        os.makedirs(plots_dir)
+        logging.info(f"Created directory: {plots_dir}")
+
     try:
         df = pd.read_csv(file_path)
     except FileNotFoundError:
