@@ -71,7 +71,7 @@ def flatten_review(review):
 
 async def main(app_id, limit=0):
     MAX_CONCURRENT_REQUESTS = 5
-    LIMIT = limit
+    LIMIT = limit if limit is not None else 0
     cursor = '*'
     semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
     
@@ -128,6 +128,7 @@ async def main(app_id, limit=0):
                         logging.warning("Failed to fetch reviews or no more reviews.")
                         break
             logging.info(f"Successfully saved {total_reviews_fetched} reviews to {output_filename}")
+            return output_filename
     except IOError as e:
         logging.error(f"Error writing reviews to CSV: {e}")
     except Exception as e:
