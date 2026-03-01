@@ -13,8 +13,8 @@ RUN python -c "import nltk; nltk.download('stopwords'); nltk.download('punkt'); 
 
 COPY . .
 
-ENV PYTHONPATH=/app
+ENV PYTHONPATH=/app/src
 
 EXPOSE 8000
 
-CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "src.steam_review.api.api:app", "--host", "0.0.0.0", "--port", "8000"]

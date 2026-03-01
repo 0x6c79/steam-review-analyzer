@@ -1,0 +1,2 @@
+[console_scripts]
+steam-review = src.steam_review.cli.cli:main

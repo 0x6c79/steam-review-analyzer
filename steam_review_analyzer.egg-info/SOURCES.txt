@@ -1,0 +1,14 @@
+README.md
+pyproject.toml
+setup.py
+src/steam_review/__init__.py
+src/steam_review/config.py
+src/steam_review/full_analysis.py
+src/steam_review/main.py
+src/steam_review/version_check.py
+steam_review_analyzer.egg-info/PKG-INFO
+steam_review_analyzer.egg-info/SOURCES.txt
+steam_review_analyzer.egg-info/dependency_links.txt
+steam_review_analyzer.egg-info/entry_points.txt
+steam_review_analyzer.egg-info/requires.txt
+steam_review_analyzer.egg-info/top_level.txt
