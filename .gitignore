@@ -48,9 +48,13 @@ reviews.db
 data/*.csv
 data/*.db
 data/*.sqlite*
+!data/README.md
+!data/.gitkeep
 
 # Generated Output
 plots/
+!plots/README.md
+!plots/.gitkeep
 *.html
 *.pdf
 *.png
