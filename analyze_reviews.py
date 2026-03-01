@@ -1,32 +1,30 @@
 import pandas as pd
 import logging
-from langdetect import detect, DetectorFactory, LangDetectException
+from langdetect import detect, LangDetectException
+from langdetect.detector_factory import DetectorFactory
 import os
 import asyncio
+import config
+from database import get_database
+import sentiment_analysis
+import keyword_analysis
+import correlation_analysis
+import time_series_analysis
 
-# Import analysis modules
-from sentiment_analysis import analyze_sentiment
-from keyword_analysis import analyze_keywords
-from correlation_analysis import analyze_correlation
-from time_series_analysis import analyze_time_series
+config.setup_logging()
 
-# Add a language column to the DataFrame
+DetectorFactory.seed = 0
+
 def detect_language_robust(text):
     text = str(text).strip()
-    if not text: # Handle empty strings after stripping
+    if not text:
         return 'unknown'
     try:
         return detect(text)
     except LangDetectException:
         return 'unknown'
 
-# Ensure reproducibility for langdetect
-DetectorFactory.seed = 0
-
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-async def main(file_path: str):
+async def main(file_path: str, save_to_db=False):
     # Create plots directory if it doesn't exist
     plots_dir = "plots"
     if not os.path.exists(plots_dir):
@@ -58,30 +56,43 @@ async def main(file_path: str):
         detected_languages.extend(batch_languages.tolist())
 
     df['detected_language'] = detected_languages
-    df['language'] = df['detected_language'] # Use detected language for analysis
 
     # Calculate playtime_hours and review_length
     df['playtime_hours'] = pd.to_numeric(df['author.playtime_forever'], errors='coerce') / 60
     df['review_length'] = df['review'].astype(str).apply(len)
 
     # Run analyses
-    analyze_sentiment(df)
-    analyze_keywords(df)
-    analyze_correlation(df)
-    analyze_time_series(df)
+    sentiment_analysis.analyze_sentiment(df)
+    keyword_analysis.analyze_keywords(df)
+    filename_base = os.path.splitext(os.path.basename(file_path))[0]
+    correlation_analysis.analyze_correlation(df, filename_base)
+    time_series_analysis.analyze_time_series(df)
+
+    # Save to database if requested
+    if save_to_db:
+        df_export = df.reset_index()
+        if 'recommendationid' in df_export.columns:
+            df_export = df_export.rename(columns={'recommendationid': 'recommendation_id'})
+        if 'app_id' not in df_export.columns:
+            basename = os.path.splitext(os.path.basename(file_path))[0]
+            for part in basename.split('_'):
+                if part.isdigit():
+                    app_id = part
+                    break
+            else:
+                app_id = 'unknown'
+            df_export['app_id'] = app_id
+        db = get_database()
+        db.insert_reviews(df_export)
+        logging.info("Reviews saved to database")
 
 if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Analyze Steam reviews from a CSV file.")
     parser.add_argument("file_path", type=str, help="Path to the reviews CSV file.")
+    parser.add_argument("--save_db", action="store_true",
+                        help="Save analyzed reviews to database")
     args = parser.parse_args()
 
-    # Download langdetect data
-    try:
-        detect("test")
-    except Exception as e:
-        logging.warning(f"langdetect data not found or error: {e}. Attempting to download.")
-        os.system("python3 -m langdetect.detector_factory --update-profile")
-
-    asyncio.run(main(args.file_path))
+    asyncio.run(main(args.file_path, args.save_db))

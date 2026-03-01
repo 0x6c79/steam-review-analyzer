@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./plots:/app/plots
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  scraper:
+    build: .
+    volumes:
+      - ./data:/app/data
+      - ./plots:/app/plots
+    command: >
+      sh -c "python -m steam_review_scraper --app_id 2277560 --incremental"
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  analyzer:
+    build: .
+    volumes:
+      - ./data:/app/data
+      - ./plots:/app/plots
+    command: >
+      sh -c "python analyze_reviews.py data/reviews.csv --save_db"
+    environment:
+      - PYTHONUNBUFFERED=1

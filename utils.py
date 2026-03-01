@@ -10,19 +10,31 @@ from nltk.tokenize import word_tokenize
 import jieba
 from wordcloud import WordCloud
 import matplotlib.font_manager as fm
+import config
 
-# Path to the custom font file
-font_path = os.path.join(os.path.dirname(__file__), 'wqy-MicroHei.ttf')
+font_path_wqy = config.FONT_PATHS['chinese']
+font_path_noto = config.FONT_PATHS['noto']
 
-# Add the font to matplotlib's font manager
-fm.fontManager.addfont(font_path)
+# Add the fonts to matplotlib's font manager
+fm.fontManager.addfont(font_path_wqy)
+fm.fontManager.addfont(font_path_noto)
 
-# Configure matplotlib for Chinese characters
-plt.rcParams['font.sans-serif'] = ['wqy-MicroHei'] # Use wqy-MicroHei.ttf for Chinese characters
+# Debugging: Print all registered font family names
+logging.info("Registered font families:")
+for font in fm.fontManager.ttflist:
+    logging.info(f"  {font.name}")
+logging.info(f"Matplotlib font.family setting: {plt.rcParams['font.family']}")
+
+# Configure matplotlib for broad language support, prioritizing local fonts
+plt.rcParams['font.family'] = ['Noto Sans', 'WenQuanYi Micro Hei']
 plt.rcParams['axes.unicode_minus'] = False # Ensure minus sign is displayed correctly
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Set a clean seaborn style and increase DPI for better aesthetics
+sns.set_style("whitegrid")
+plt.rcParams['figure.dpi'] = 150
+plt.rcParams['figure.figsize'] = (10, 6)
+
+config.setup_logging()
 
 # Ensure NLTK stopwords are downloaded
 try:
@@ -35,7 +47,9 @@ try:
 except LookupError:
     nltk.download('punkt')
 
-def load_chinese_stopwords(file_path='chinese_stopwords.txt'):
+def load_chinese_stopwords(file_path=None):
+    if file_path is None:
+        file_path = config.CHINESE_STOPWORDS_FILE
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             return set(line.strip() for line in f)
@@ -95,7 +109,7 @@ def generate_word_cloud(text, title, filename, font_path=None):
     plt.close()
     logging.info(f"Generated plots/{filename}")
 
-def analyze_by_playtime(df):
+def analyze_by_playtime(df, filename_base):
     # Convert playtime to hours and handle potential non-numeric values
     df['playtime_hours'] = pd.to_numeric(df['author.playtime_forever'], errors='coerce') / 60
     df.dropna(subset=['playtime_hours', 'voted_up'], inplace=True)
@@ -149,7 +163,7 @@ def analyze_by_playtime(df):
     plt.xticks(rotation=45, ha='right')
     plt.legend(title='情感', labels=['差评', '好评'])
     plt.tight_layout()
-    plt.savefig('plots/sentiment_by_playtime.png')
+    plt.savefig(f'plots/{filename_base}_sentiment_by_playtime.png')
     plt.close()
     logging.info("Generated plots/sentiment_by_playtime.png")
 
@@ -161,11 +175,11 @@ def analyze_by_playtime(df):
     plt.ylabel('游玩时长 (小时)')
     plt.yscale('log') # Use log scale for playtime if it has a wide range
     plt.tight_layout()
-    plt.savefig('plots/playtime_sentiment_boxplot.png')
+    plt.savefig(f'plots/{filename_base}_playtime_sentiment_boxplot.png')
     plt.close()
     logging.info("Generated plots/playtime_sentiment_boxplot.png")
 
-def analyze_by_review_length(df):
+def analyze_by_review_length(df, filename_base):
     df['review_length'] = df['review'].astype(str).apply(len)
     df.dropna(subset=['review_length', 'voted_up'], inplace=True)
     if df.empty:
@@ -188,7 +202,7 @@ def analyze_by_review_length(df):
     plt.xticks(rotation=45, ha='right')
     plt.legend(title='情感', labels=['差评', '好评'])
     plt.tight_layout()
-    plt.savefig('plots/sentiment_by_review_length.png')
+    plt.savefig(f'plots/{filename_base}_sentiment_by_review_length.png')
     plt.close()
     logging.info("Generated plots/sentiment_by_review_length.png")
 
@@ -205,11 +219,11 @@ def analyze_by_review_length(df):
     plt.ylabel('评论长度 (字符数)')
     plt.yscale('log') # Use log scale for review length if it has a wide range
     plt.tight_layout()
-    plt.savefig('plots/review_length_sentiment_boxplot.png')
+    plt.savefig(f'plots/{filename_base}_review_length_sentiment_boxplot.png')
     plt.close()
     logging.info("Generated plots/review_length_sentiment_boxplot.png")
 
-def analyze_by_early_access(df):
+def analyze_by_early_access(df, filename_base):
     if df.empty:
         logging.warning("No data for early access analysis. Skipping.")
         return
@@ -225,7 +239,7 @@ def analyze_by_early_access(df):
     plt.xticks(ticks=[0, 1], labels=['否', '是'], rotation=0)
     plt.legend(title='情感', labels=['差评', '好评'])
     plt.tight_layout()
-    plt.savefig('plots/sentiment_by_early_access.png')
+    plt.savefig(f'plots/{filename_base}_sentiment_by_early_access.png')
     plt.close()
     logging.info("Generated plots/sentiment_by_early_access.png")
 

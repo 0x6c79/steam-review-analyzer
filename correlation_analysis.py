@@ -1,14 +1,11 @@
-import pandas as pd
 import logging
 import scipy.stats as stats
-import matplotlib.pyplot as plt
-import seaborn as sns
 from utils import analyze_by_playtime, analyze_by_review_length, analyze_by_early_access
+import config
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+config.setup_logging()
 
-def analyze_correlation(df):
+def analyze_correlation(df, filename_base):
     logging.info("\n--- Performing Correlation Analysis ---")
 
     # New Analysis: Correlation between Sentiment Score and Playtime/Review Length
@@ -21,9 +18,10 @@ def analyze_correlation(df):
         logging.info(f"Pearson correlation between English sentiment score and review length: {correlation_review_length:.2f} (p-value: {p_value_review_length:.3f})")
 
     # Other Analyses
-    analyze_by_playtime(df.copy())
-    analyze_by_review_length(df.copy())
-    analyze_by_early_access(df.copy())
+    analyze_by_playtime(df.copy(), filename_base)
+    analyze_by_review_length(df.copy(), filename_base)
+    analyze_by_early_access(df.copy(), filename_base)
+
 
 if __name__ == "__main__":
     pass

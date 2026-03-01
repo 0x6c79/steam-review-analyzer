@@ -4,9 +4,9 @@ import logging
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 import nltk
 import utils
+import config
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+config.setup_logging()
 
 def analyze_sentiment(df):
     logging.info("\n--- Performing Sentiment Analysis ---")

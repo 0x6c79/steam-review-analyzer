@@ -1,18 +1,15 @@
-import pandas as pd
 import logging
-import matplotlib.pyplot as plt
-import seaborn as sns
 from collections import Counter
 import utils
+import config
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+config.setup_logging()
 
 def analyze_time_series(df):
     logging.info("\n--- Performing Time Series Analysis ---")
 
     # Resample by week and calculate sentiment ratios
-    weekly_sentiment = df.resample('W').apply({'voted_up': lambda x: (x == True).sum(),
+    weekly_sentiment = df.resample('W').apply({'voted_up': lambda x: x.sum(),
                                                 'review': 'count'})
     weekly_sentiment.rename(columns={'voted_up': 'Positive_Count', 'review': 'Total_Reviews'}, inplace=True)
     weekly_sentiment['Negative_Count'] = weekly_sentiment['Total_Reviews'] - weekly_sentiment['Positive_Count']
@@ -29,8 +26,8 @@ def analyze_time_series(df):
     monthly_keywords = {}
 
     for month, group in df.groupby('year_month'):
-        positive_text = " ".join(group[group['voted_up'] == True]['review'].dropna().tolist())
-        negative_text = " ".join(group[group['voted_up'] == False]['review'].dropna().tolist())
+        positive_text = " ".join(group[group['voted_up']]['review'].dropna().tolist())
+        negative_text = " ".join(group[~group['voted_up']]['review'].dropna().tolist())
 
         # Use detected_language for preprocessing
         positive_tokens = utils.preprocess_text(positive_text, lang=group['detected_language'].iloc[0] if not group.empty else 'english')
