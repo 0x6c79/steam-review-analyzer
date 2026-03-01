@@ -145,25 +145,56 @@ if page == "📊 Overview":
         st.warning("No data available. Go to 🔍 Scrape to fetch reviews.")
         st.stop()
     
-    # Auto-run analysis if not done
+    # Optimized startup - skip analysis if cached
+    from src.steam_review.dashboard.startup_optimizer import (
+        get_startup_optimizer, DashboardStartupConfig
+    )
+    
+    optimizer = get_startup_optimizer(enable_cache=True)
+    startup_config = DashboardStartupConfig()
+    
     csv_file = None
     csv_files = get_csv_files()
     if csv_files:
         csv_file = os.path.join(PROJECT_ROOT, 'data', csv_files[0])
-        prefix = os.path.basename(csv_file).replace('.csv', '')
         plots_dir = os.path.join(PROJECT_ROOT, 'plots')
-        existing_plots = []
-        if os.path.exists(plots_dir):
-            existing_plots = [f for f in os.listdir(plots_dir) if prefix in f and f.endswith('.png')]
         
-        if not existing_plots:
-            with st.spinner("Running initial analysis..."):
-                try:
-                    from src.steam_review.full_analysis import generate_full_analysis
-                    generate_full_analysis(csv_file, plots_dir)
-                    st.cache_data.clear()
-                except Exception as e:
-                    st.warning(f"Auto-analysis skipped: {e}")
+        # Check if analysis is needed
+        if optimizer.should_run_analysis(csv_file, plots_dir, force=False):
+            if startup_config.auto_analysis_enabled:
+                with st.spinner("Running initial analysis..."):
+                    try:
+                        from src.steam_review.full_analysis import generate_full_analysis
+                        generate_full_analysis(csv_file, plots_dir)
+                        optimizer.record_successful_analysis(csv_file, plots_dir)
+                        st.cache_data.clear()
+                    except Exception as e:
+                        st.warning(f"Auto-analysis skipped: {e}")
+            else:
+                # Analysis not found, show user option
+                st.info("""
+                📊 **Analysis plots not yet generated**
+                
+                Click the button below to generate detailed analysis charts for better insights.
+                This will be cached for future sessions.
+                """)
+                
+                col1, col2 = st.columns([1, 3])
+                with col1:
+                    if st.button("🔄 Generate Analysis", use_container_width=True):
+                        with st.spinner("Generating analysis plots..."):
+                            try:
+                                from src.steam_review.full_analysis import generate_full_analysis
+                                generate_full_analysis(csv_file, plots_dir)
+                                optimizer.record_successful_analysis(csv_file, plots_dir)
+                                st.cache_data.clear()
+                                st.success("✅ Analysis complete!")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Analysis failed: {e}")
+        else:
+            if startup_config.show_startup_info:
+                st.success("✅ Using cached analysis from previous session")
     
     # ========== Stats Row ==========
     col1, col2, col3, col4 = st.columns(4)
