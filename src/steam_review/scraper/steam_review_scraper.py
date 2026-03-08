@@ -1,9 +1,4 @@
-import sys
 import os
-project_root = os.path.join(os.path.dirname(__file__), '..', '..', '..')
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-
 import asyncio
 import aiohttp
 import csv
@@ -11,6 +6,7 @@ import urllib.parse
 from aiohttp import ClientTimeout
 import logging
 import argparse
+from typing import Optional, Set, Dict, Any
 from src.steam_review import config
 
 config.setup_logging()
@@ -18,15 +14,14 @@ config.setup_logging()
 DEFAULT_TIMEOUT = ClientTimeout(total=10)
 
 
-def load_existing_review_ids(csv_path):
+def load_existing_review_ids(csv_path: str) -> Set[str]:
     if not os.path.exists(csv_path):
         return set()
-    existing_ids = set()
+    existing_ids: Set[str] = set()
     try:
         with open(csv_path, 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
             for row in reader:
-                # Handle both 'recommendation_id' and 'recommendationid'
                 rid = row.get('recommendation_id') or row.get('recommendationid')
                 if rid:
                     existing_ids.add(rid)
@@ -35,7 +30,7 @@ def load_existing_review_ids(csv_path):
         logging.warning(f"Could not load existing review IDs: {e}")
     return existing_ids
 
-async def get_app_details(session, app_id):
+async def get_app_details(session: aiohttp.ClientSession, app_id: str) -> Optional[str]:
     url = f"https://store.steampowered.com/api/appdetails?appids={app_id}"
     try:
         async with session.get(url, timeout=DEFAULT_TIMEOUT) as response:
@@ -50,7 +45,13 @@ async def get_app_details(session, app_id):
         logging.error(f"Error fetching app details for App ID {app_id}: {e}")
         return None
 
-async def get_reviews(session, app_id, cursor='*', retries=5, backoff_factor=1):
+async def get_reviews(
+    session: aiohttp.ClientSession,
+    app_id: str,
+    cursor: str = '*',
+    retries: int = 5,
+    backoff_factor: float = 1.0
+) -> Optional[Dict[str, Any]]:
     url = f"https://store.steampowered.com/appreviews/{app_id}?json=1&filter=all&language=all&day_range=9223372036854775807&review_type=all&purchase_type=all"
     if cursor != '*':
         url += f"&cursor={urllib.parse.quote(cursor)}"
@@ -91,24 +92,42 @@ async def get_reviews(session, app_id, cursor='*', retries=5, backoff_factor=1):
             else:
                 logging.error(f"Max retries reached for {url}")
                 return None
+        except asyncio.TimeoutError as e:
+            logging.warning(f"Request timeout (attempt {attempt + 1}/{retries}): {e}")
+            if attempt < retries - 1:
+                wait_time = backoff_factor * (2 ** attempt)
+                logging.info(f"Retrying in {wait_time:.2f} seconds...")
+                await asyncio.sleep(wait_time)
+            else:
+                logging.error(f"Max retries reached for {url}")
+                return None
+        except (aiohttp.ClientError, aiohttp.ClientResponseError) as e:
+            logging.warning(f"Request failed (attempt {attempt + 1}/{retries}): {e}")
+            if attempt < retries - 1:
+                wait_time = backoff_factor * (2 ** attempt)
+                logging.info(f"Retrying in {wait_time:.2f} seconds...")
+                await asyncio.sleep(wait_time)
+            else:
+                logging.error(f"Max retries reached for {url}")
+                return None
         except Exception as e:
             logging.error(f"Unexpected error: {e}")
             return None
     return None
 
-def flatten_review(review):
+def flatten_review(review: Dict[str, Any]) -> Dict[str, Any]:
     review_flat = review.copy()
     author_data = review_flat.pop('author', {})
     for key, value in author_data.items():
         review_flat[f'author.{key}'] = value
     return review_flat
 
-def save_checkpoint(app_id, cursor, total_fetched):
+def save_checkpoint(app_id: str, cursor: str, total_fetched: int) -> None:
     checkpoint_file = f".checkpoint_{app_id}.txt"
     with open(checkpoint_file, 'w') as f:
         f.write(f"{cursor}\n{total_fetched}")
 
-def load_checkpoint(app_id):
+def load_checkpoint(app_id: str) -> tuple[str, int]:
     checkpoint_file = f".checkpoint_{app_id}.txt"
     if os.path.exists(checkpoint_file):
         try:

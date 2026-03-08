@@ -1,9 +1,3 @@
-import sys
-import os
-project_root = os.path.join(os.path.dirname(__file__), '..', '..', '..')
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-
 import argparse
 from src.steam_review.storage.database import get_database
 from src.steam_review import config
