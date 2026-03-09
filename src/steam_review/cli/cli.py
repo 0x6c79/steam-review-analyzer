@@ -8,14 +8,15 @@ import sys
 import asyncio
 import click
 import logging
+import json
 from pathlib import Path
-from typing import NoReturn
+from typing import NoReturn, Any
 
 # Determine project root - works in both dev and installed modes
 cli_path = Path(__file__).resolve()
 # cli_path = src/steam_review/cli/cli.py
 # Go up to project root
-PROJECT_ROOT = cli_path.parent.parent.parent
+PROJECT_ROOT: Path = cli_path.parent.parent.parent
 
 sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -30,12 +31,12 @@ from src.steam_review.utils.exceptions import (
 )
 
 config.setup_logging()
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 def handle_error(error: Exception) -> NoReturn:
     """Handle errors gracefully and exit with appropriate code"""
-    error_msg = str(error)
+    error_msg: str = str(error)
 
     if isinstance(error, SteamAPIError):
         click.echo(f"❌ API 错误: {error_msg}", err=True)
@@ -57,14 +58,14 @@ def handle_error(error: Exception) -> NoReturn:
         sys.exit(1)
 
 
-def load_config():
+def load_config() -> dict[str, Any]:
     """Load user configuration"""
-    config_file = PROJECT_ROOT / "config.json"
+    config_file: Path = PROJECT_ROOT / "config.json"
     if config_file.exists():
-        import json
-
         with open(config_file) as f:
-            return json.load(f)
+            data: Any = json.load(f)
+            if isinstance(data, dict):
+                return data
     return {}
 
 

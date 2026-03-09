@@ -41,12 +41,14 @@ async def get_app_details(session: aiohttp.ClientSession, app_id: str) -> Option
     try:
         async with session.get(url, timeout=DEFAULT_TIMEOUT) as response:
             response.raise_for_status()
-            data = await response.json()
+            data: Any = await response.json()
             if data and str(app_id) in data and data[str(app_id)].get("success"):
-                return data[str(app_id)]["data"].get("name")
-            else:
-                logging.error(f"Could not retrieve app details for App ID {app_id}.")
-                return None
+                app_data: Any = data[str(app_id)].get("data")
+                if app_data:
+                    name: str | None = app_data.get("name")
+                    return name
+            logging.error(f"Could not retrieve app details for App ID {app_id}.")
+            return None
     except aiohttp.ClientError as e:
         logging.error(f"Error fetching app details for App ID {app_id}: {e}")
         return None
@@ -68,8 +70,8 @@ async def get_reviews(
             await asyncio.sleep(0.5)
             async with session.get(url, timeout=DEFAULT_TIMEOUT) as response:
                 if response.status == 429:
-                    retry_after = response.headers.get("Retry-After")
-                    wait_time = (
+                    retry_after: str | None = response.headers.get("Retry-After")
+                    wait_time: float = (
                         int(retry_after)
                         if retry_after
                         else backoff_factor * (2**attempt)
@@ -80,12 +82,15 @@ async def get_reviews(
                     await asyncio.sleep(wait_time)
                     continue
                 response.raise_for_status()
-                return await response.json()
+                json_data: dict[str, Any] | None = await response.json()
+                return json_data
         except aiohttp.ClientResponseError as e:
-            if e.status == 429:
-                retry_after = e.headers.get("Retry-After")
+            if e.status == 429 and e.headers:
+                retry_after_header: str | None = e.headers.get("Retry-After")
                 wait_time = (
-                    int(retry_after) if retry_after else backoff_factor * (2**attempt)
+                    int(retry_after_header)
+                    if retry_after_header
+                    else backoff_factor * (2**attempt)
                 )
                 logging.warning(f"Rate limit hit (429). Waiting {wait_time} seconds...")
                 await asyncio.sleep(wait_time)
