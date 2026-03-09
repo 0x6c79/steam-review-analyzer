@@ -4,6 +4,7 @@ import logging
 import asyncio
 from langdetect import detect, LangDetectException
 from langdetect.detector_factory import DetectorFactory
+from tqdm import tqdm
 from src.steam_review import config
 from src.steam_review.storage.database import get_database
 from src.steam_review.analysis import sentiment_analysis
@@ -56,7 +57,12 @@ async def main(file_path: str, save_to_db=False):
     BATCH_SIZE = 1000  # Define a batch size for language detection
     detected_languages = []
 
-    for i in range(0, len(df), BATCH_SIZE):
+    for i in tqdm(
+        range(0, len(df), BATCH_SIZE),
+        desc="Detecting languages",
+        unit="batch",
+        ascii=True,
+    ):
         batch = df.iloc[i : i + BATCH_SIZE]
         # Apply language detection to the 'review' column of the batch
         batch_languages = batch["review"].astype(str).apply(detect_language_robust)

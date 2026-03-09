@@ -3,16 +3,12 @@ import asyncio
 import aiohttp
 import csv
 import urllib.parse
-from aiohttp import ClientTimeout
 import logging
 import argparse
+from aiohttp import ClientTimeout
 from typing import Optional, Set, Dict, Any
+from tqdm import tqdm
 from src.steam_review import config
-from src.steam_review.utils.exceptions import (
-    ScraperError,
-    SteamAPIError,
-    RateLimitError,
-)
 
 config.setup_logging()
 
@@ -215,6 +211,17 @@ async def main(app_id, limit=0, incremental=False):
                 new_reviews_count = 0
                 consecutive_failures = 0
 
+                # Initialize progress bar
+                total_fetched = total_reviews_fetched
+                if LIMIT > 0:
+                    total_fetched = LIMIT
+                progress_bar = tqdm(
+                    total=total_fetched,
+                    desc=f"Fetching reviews for {game_name or app_id}",
+                    unit="review",
+                    ascii=True,
+                )
+
                 while True:
                     async with semaphore:
                         reviews_data = await get_reviews(session, app_id, cursor)
@@ -292,6 +299,8 @@ async def main(app_id, limit=0, incremental=False):
                             logging.info("All new reviews already exist. Stopping.")
                             break
 
+                        # Progress bar
+                        progress_bar.update(len(flattened_reviews))
                         logging.info(
                             f"Fetched {len(flattened_reviews)} reviews, {len(new_reviews)} new. Total: {total_reviews_fetched}"
                         )
@@ -303,10 +312,13 @@ async def main(app_id, limit=0, incremental=False):
                             )
                             save_checkpoint(app_id, cursor, total_reviews_fetched)
                             break
-                        logging.warning(
-                            f"Failed to fetch reviews (attempt {consecutive_failures}/5). Retrying..."
-                        )
-                        await asyncio.sleep(2)
+                            logging.warning(
+                                f"Failed to fetch reviews (attempt {consecutive_failures}/5). Retrying..."
+                            )
+                            await asyncio.sleep(2)
+
+            # Close progress bar
+            progress_bar.close()
 
             if os.path.exists(f".checkpoint_{app_id}.txt"):
                 os.remove(f".checkpoint_{app_id}.txt")
