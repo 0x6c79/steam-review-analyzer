@@ -53,6 +53,8 @@ dependencies = [
     "langdetect==1.0.9",
     "pyparsing==3.2.3",
     "python-dateutil==2.9.0.post0",
+    "pydantic==2.10.6",
+    "python-dotenv>=1.0.0",
     "pytz==2025.2",
     "regex==2025.7.34",
     "scipy==1.17.1",
@@ -64,7 +66,6 @@ dependencies = [
     "openpyxl==3.1.5",
     "fastapi==0.115.12",
     "uvicorn==0.34.0",
-    "pydantic==2.10.6",
     "scikit-learn==1.6.1",
     "schedule==1.2.2",
     "streamlit==1.42.2",
@@ -85,6 +86,9 @@ dev = [
 ml = [
     "torch>=2.0.0",
     "transformers>=4.48.0",
+]
+env = [
+    "python-dotenv>=1.0.0",
 ]
 
 [project.scripts]

@@ -2,10 +2,14 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Any, Optional
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).parent
 PROJECT_ROOT = BASE_DIR.parent.parent
+
+# Load environment variables
+load_dotenv()
 
 CONFIG_FILE = PROJECT_ROOT / "config.json"
 
@@ -48,14 +52,39 @@ def setup_logging(level=logging.INFO):
     logging.basicConfig(level=level, format="%(asctime)s - %(levelname)s - %(message)s")
 
 
+def _get_db_path() -> str:
+    """Get database path from environment or use default"""
+    db_path = os.getenv("DB_PATH")
+    if db_path:
+        return db_path
+    return os.path.join(PROJECT_ROOT, "data", "reviews.db")
+
+
+def _get_scraper_config() -> Dict[str, Any]:
+    """Get scraper configuration from environment or use defaults"""
+    max_concurrent = int(os.getenv("SCRAPER_MAX_CONCURRENT_REQUESTS", "5"))
+    default_timeout = int(os.getenv("SCRAPER_DEFAULT_TIMEOUT", "10"))
+    max_retries = int(os.getenv("SCRAPER_MAX_RETRIES", "5"))
+    backoff_factor = float(os.getenv("SCRAPER_BACKOFF_FACTOR", "1.0"))
+    return {
+        "max_concurrent_requests": max_concurrent,
+        "default_timeout": default_timeout,
+        "max_retries": max_retries,
+        "backoff_factor": backoff_factor,
+    }
+
+
 FONT_PATHS = {
     "chinese": os.path.join(PROJECT_ROOT, "data", "wqy-MicroHei.ttf"),
     "noto": os.path.join(PROJECT_ROOT, "Noto_Sans", "static", "NotoSans-Regular.ttf"),
 }
 
-DB_PATH = os.path.join(PROJECT_ROOT, "data", "reviews.db")
+DB_PATH = _get_db_path()
 
-PLOTS_DIR = "plots"
+PLOTS_DIR = os.getenv("PLOTS_DIR", "plots")
+
+# Scraper configuration
+SCRAPER_CONFIG = _get_scraper_config()
 
 # Game name mapping (App ID -> Game Name)
 # Priority: config file > environment variable > default
