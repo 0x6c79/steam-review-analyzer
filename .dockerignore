@@ -1,0 +1,68 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+.venv312/
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+
+# Data and outputs
+data/
+plots/
+*.csv
+*.db
+*.sqlite
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# NLTK data (downloaded at runtime)
+nltk_data/
+*.nltk_data/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+.dockerignore
+
+# Logs
+*.log
+
+# Checkpoints
+.checkpoint_*.txt
+
+# Lock files
+uv.lock
+requirements.txt
+
+# Documentation
+docs/*.md
+AGENTS.md
+
+# Temporary files
+*.tmp
+*.bak
