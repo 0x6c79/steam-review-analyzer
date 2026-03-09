@@ -7,7 +7,9 @@ import os
 import sys
 import asyncio
 import click
+import logging
 from pathlib import Path
+from typing import NoReturn
 
 # Determine project root - works in both dev and installed modes
 cli_path = Path(__file__).resolve()
@@ -20,8 +22,39 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from src.steam_review import config
 from src.steam_review.scraper.steam_review_scraper import main as scrape_main
 from src.steam_review.storage.database import get_database
+from src.steam_review.utils.exceptions import (
+    SteamReviewError,
+    ScraperError,
+    DatabaseError,
+    SteamAPIError,
+)
 
 config.setup_logging()
+logger = logging.getLogger(__name__)
+
+
+def handle_error(error: Exception) -> NoReturn:
+    """Handle errors gracefully and exit with appropriate code"""
+    error_msg = str(error)
+
+    if isinstance(error, SteamAPIError):
+        click.echo(f"❌ API 错误: {error_msg}", err=True)
+        if error.status_code == 429:
+            click.echo("⏳ 请稍后再试 (Steam API 限流)", err=True)
+        sys.exit(1)
+    elif isinstance(error, ScraperError):
+        click.echo(f"❌ 爬取错误: {error_msg}", err=True)
+        sys.exit(1)
+    elif isinstance(error, DatabaseError):
+        click.echo(f"❌ 数据库错误: {error_msg}", err=True)
+        sys.exit(1)
+    elif isinstance(error, SteamReviewError):
+        click.echo(f"❌ 错误: {error_msg}", err=True)
+        sys.exit(1)
+    else:
+        click.echo(f"❌ 未知错误: {error_msg}", err=True)
+        logger.exception("Unexpected error occurred")
+        sys.exit(1)
 
 
 def load_config():
@@ -267,7 +300,13 @@ def scrape(app_id, limit):
         steam-review scrape -a 2897760        # 爬取指定游戏
         steam-review scrape -l 100            # 爬取 100 条
     """
-    asyncio.run(scrape_main(app_id, limit, False))
+    try:
+        asyncio.run(scrape_main(app_id, limit, False))
+    except KeyboardInterrupt:
+        click.echo("\n⚠️ 操作已取消")
+        sys.exit(130)
+    except Exception as e:
+        handle_error(e)
 
 
 @cli.command()
@@ -287,10 +326,16 @@ def analyze(file):
         file = max(csv_files, key=lambda x: x.stat().st_mtime)
         click.echo(f"📁 使用: {file.name}")
 
-    from src.steam_review.full_analysis import generate_full_analysis
+    try:
+        from src.steam_review.full_analysis import generate_full_analysis
 
-    generate_full_analysis(str(file), "plots")
-    click.echo("✅ 完成! 图表在 plots/")
+        generate_full_analysis(str(file), "plots")
+        click.echo("✅ 完成! 图表在 plots/")
+    except KeyboardInterrupt:
+        click.echo("\n⚠️ 操作已取消")
+        sys.exit(130)
+    except Exception as e:
+        handle_error(e)
 
 
 @cli.command()
@@ -302,23 +347,33 @@ def stats(app_id):
         steam-review stats              # 查看所有游戏
         steam-review stats -a 2277560  # 查看指定游戏
     """
-    db = get_database()
-    games = db.get_all_games()
+    try:
+        db = get_database()
+        games = db.get_all_games()
 
-    if app_id:
-        games = [g for g in games if str(g["app_id"]) == str(app_id)]
+        if app_id:
+            games = [g for g in games if str(g["app_id"]) == str(app_id)]
 
-    for g in games:
-        name = config.get_game_name(g["app_id"])
-        total = g["total"]
-        pos = g["positive"]
-        rate = pos / total * 100 if total else 0
+        if not games:
+            click.echo("❌ 数据库为空，请先爬取数据")
+            return
 
-        bar = "█" * int(rate / 5) + "░" * (20 - int(rate / 5))
-        click.echo(f"\n{name}")
-        click.echo(f"  App ID: {g['app_id']}")
-        click.echo(f"  总计: {total} | 好评: {pos} ({rate:.1f}%)")
-        click.echo(f"  [{bar}]")
+        for g in games:
+            name = config.get_game_name(g["app_id"])
+            total = g["total"]
+            pos = g["positive"]
+            rate = pos / total * 100 if total else 0
+
+            bar = "█" * int(rate / 5) + "░" * (20 - int(rate / 5))
+            click.echo(f"\n{name}")
+            click.echo(f"  App ID: {g['app_id']}")
+            click.echo(f"  总计: {total} | 好评: {pos} ({rate:.1f}%)")
+            click.echo(f"  [{bar}]")
+    except KeyboardInterrupt:
+        click.echo("\n⚠️ 操作已取消")
+        sys.exit(130)
+    except Exception as e:
+        handle_error(e)
 
 
 @cli.command()

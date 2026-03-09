@@ -2,6 +2,7 @@ import sqlite3
 import pandas as pd
 import logging
 from src.steam_review import config
+from src.steam_review.utils.exceptions import DatabaseError, ValidationError
 
 logger = logging.getLogger(__name__)
 
