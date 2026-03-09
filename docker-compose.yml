@@ -3,30 +3,38 @@ version: '3.8'
 services:
   api:
     build: .
+    container_name: steam-review-api
     ports:
       - "8000:8000"
+    environment:
+      - PYTHONPATH=/app/src
+      - PYTHONUNBUFFERED=1
     volumes:
       - ./data:/app/data
       - ./plots:/app/plots
+    restart: unless-stopped
+
+  dashboard:
+    build: .
+    container_name: steam-review-dashboard
+    ports:
+      - "8501:8501"
     environment:
+      - PYTHONPATH=/app/src
       - PYTHONUNBUFFERED=1
+    volumes:
+      - ./data:/app/data
+      - ./plots:/app/plots
+    restart: unless-stopped
+    command: streamlit run src/steam_review/dashboard/dashboard.py --server.port=8501 --server.address=0.0.0.0
 
   scraper:
     build: .
+    container_name: steam-review-scraper
+    environment:
+      - PYTHONPATH=/app/src
+      - PYTHONUNBUFFERED=1
     volumes:
       - ./data:/app/data
       - ./plots:/app/plots
-    command: >
-      sh -c "python -m steam_review_scraper --app_id 2277560 --incremental"
-    environment:
-      - PYTHONUNBUFFERED=1
-
-  analyzer:
-    build: .
-    volumes:
-      - ./data:/app/data
-      - ./plots:/app/plots
-    command: >
-      sh -c "python analyze_reviews.py data/reviews.csv --save_db"
-    environment:
-      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
